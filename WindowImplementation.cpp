@@ -116,24 +116,28 @@ void Curses::WindowImplementation::moveCursorLeft(int amount) {
 }
 
 void Curses::WindowImplementation::moveCursorRight(int amount) {
-  if (amount + getcurx(cursesWindow.get()) > getmaxx(cursesWindow.get()) - 1) {
-      amount = getmaxx(cursesWindow.get()) - getcurx(cursesWindow.get());
+  int current = getcurx(cursesWindow.get());
+  if (amount + getcurx(cursesWindow.get()) >= getmaxx(cursesWindow.get()) - 1) {
+      amount = getmaxx(cursesWindow.get()) - 1;
+      current = 0;
   }
-  wmove(cursesWindow.get(), getcury(cursesWindow.get()), amount + getcurx(cursesWindow.get())-1);
+  wmove(cursesWindow.get(), getcury(cursesWindow.get()), amount + current);
 }
 
 void Curses::WindowImplementation::moveCursorUp(int amount) {
   if (getcury(cursesWindow.get()) < amount) {
     amount = getcury(cursesWindow.get());
   }
-  wmove(cursesWindow.get(), getcury(cursesWindow.get())-amount, getcurx(cursesWindow.get()));
+  wmove(cursesWindow.get(), getcury(cursesWindow.get()) - amount, getcurx(cursesWindow.get()));
 }
 
 void Curses::WindowImplementation::moveCursorDown(int amount) {
-  if (amount + getcury(cursesWindow.get()) > getmaxy(cursesWindow.get())) {
-    amount = getmaxy(cursesWindow.get());
+  int current = getcury(cursesWindow.get());
+  if (amount + getcury(cursesWindow.get()) >= getmaxy(cursesWindow.get()) - 1) {
+    amount = getmaxy(cursesWindow.get()) - 1;
+    current = 0;
   }
-  wmove(cursesWindow.get(), amount, getcurx(cursesWindow.get()));
+  wmove(cursesWindow.get(), current + amount, getcurx(cursesWindow.get()));
 }
 
 void Curses::WindowImplementation::setAdvanceCursorOn() {
@@ -164,12 +168,17 @@ void Curses::WindowImplementation::change_cursor() {
     // THIS is only for advancing cursor to right by one with wrapping
 
     int maxX = getmaxx(cursesWindow.get());
+    int maxY = getmaxy(cursesWindow.get());
     int curX = getcurx(cursesWindow.get());
     int curY = getcury(cursesWindow.get());
 
     if (advancing_status) {
-        if (maxX == curX + 1) {  // bottom right corner
-            moveCursor(curY + 1, 0); }
-        else { moveCursorRight(1); } // within window borders
+        if (maxX == curX + 1 && maxY == curY + 1) {   // bottom right corner
+        }
+        else if (maxX == curX + 1 && maxY != curY + 1) {   // end of a row
+          wmove(cursesWindow.get(), curY + 1, 0); }
+        else { wmove(cursesWindow.get(), curY, curX); } // within window borders
     }
+
+    wrefresh(cursesWindow.get());
 }
