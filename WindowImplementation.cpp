@@ -61,7 +61,10 @@ std::string Curses::WindowImplementation::getStringInput() {
 }
 
 void Curses::WindowImplementation::addCharacter(int row, int col, char value) {
+  int oriRow = getcury(cursesWindow.get());
+  int oriCol = getcurx(cursesWindow.get());
   mvwaddch(cursesWindow.get(), row, col, value);
+  wmove(cursesWindow.get(), oriRow, oriCol);
   change_cursor();
 }
 
@@ -162,6 +165,12 @@ void Curses::WindowImplementation::refresh() {
 
 void Curses::WindowImplementation::log(std::ostream& out) {
 
+ /* for (int i = 0; i < getNumRows(); i++) {
+    for (int k = 0; k < getNumCols(); k++) {
+      out << getWindowChar(i , k);
+    }
+    out << std::endl;
+  }*/
 }
 
 void Curses::WindowImplementation::change_cursor() {
@@ -177,8 +186,7 @@ void Curses::WindowImplementation::change_cursor() {
         }
         else if (maxX == curX + 1 && maxY != curY + 1) {   // end of a row
           wmove(cursesWindow.get(), curY + 1, 0); }
-        else { wmove(cursesWindow.get(), curY, curX); } // within window borders
+        else { wmove(cursesWindow.get(), curY, curX + 1); } // within window borders
     }
 
-    wrefresh(cursesWindow.get());
 }
