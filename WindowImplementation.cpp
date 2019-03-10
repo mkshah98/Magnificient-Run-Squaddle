@@ -9,19 +9,14 @@
  * you have other members
  */
 Curses::WindowImplementation::WindowImplementation(int numRows, int numCols, int startRow, int startCol) :
-    cursesWindow(nullptr, delwin) {
+        cursesWindow(nullptr, delwin) {
   if (!stdscr) {
     initscr();
   }
   cursesWindow = std::unique_ptr<WINDOW, decltype(delwin)*>(newwin(numRows, numCols, startRow, startCol), delwin);
 }
 
-Curses::WindowImplementation::WindowImplementation(int numRows, int numCols) : WindowImplementation(numRows,
-                                                                                                    numCols,
-                                                                                                    0,
-                                                                                                    0) {
-
-}
+Curses::WindowImplementation::WindowImplementation(int numRows, int numCols) : WindowImplementation(numRows, numCols, 0,0){}
 
 //the unique pointer will automatically delete itself
 //but if you dynamically allocate any more space for this
@@ -37,7 +32,11 @@ char Curses::WindowImplementation::getWindowChar() {
 }
 
 char Curses::WindowImplementation::getCharInput(int row, int col) {
-  return mvwgetch(cursesWindow.get(),row, col);
+    char input_char =mvwgetch(cursesWindow.get(), row, col);
+    if(!advancing_status){
+        wmove(cursesWindow.get(),row, col);
+    }
+    return input_char;
 }
 
 char Curses::WindowImplementation::getCharInput() {
@@ -47,13 +46,12 @@ char Curses::WindowImplementation::getCharInput() {
 std::string Curses::WindowImplementation::getStringInput(int row, int col) {
   std::string win_string;
   int i = col;
-
+  moveCursor(row,col);
   while(getCharInput(row, i) != '\n') {
     win_string += getCharInput(row, i);
-    ++i;
+    i++;
   }
-  moveCursor(row, col);
-    //win_string += '\0';
+  if(!advancing_status){ moveCursor(row,col);}
   return win_string;
 }
 
@@ -62,29 +60,34 @@ std::string Curses::WindowImplementation::getStringInput() {
 }
 
 void Curses::WindowImplementation::addCharacter(int row, int col, char value) {
-  mvwaddch(cursesWindow.get(), row, col, value);
-  if(!advancing_status){
-    wmove(cursesWindow.get(), oriRow, oriCol);
-    change_cursor();
+ mvwaddch(cursesWindow.get(), row, col, value);
+  if(!advancing_status) {
+      wmove(cursesWindow.get(), row, col);
+     // change_cursor();
   }
 }
 
 void Curses::WindowImplementation::addCharacter(char value) {
   addCharacter(getCurRow(), getCurCol(), value);
+  if(!advancing_status) {
+      wmove(cursesWindow.get(), getCurRow(), getCurCol());
+      //change_cursor();
+  }
 }
 
 void Curses::WindowImplementation::addString(int row, int col, const std::string& str) {
-    wmove(cursesWindow.get(), row, col);
+  wmove(cursesWindow.get(), row, col);
   for(const auto& letter : str) {
     addCharacter(letter);
   }
   if(!advancing_status) {
       wmove(cursesWindow.get(), row, col);
+      change_cursor();
   }
 }
 
 void Curses::WindowImplementation::addString(const std::string& str) {
-    addString(getcury(cursesWindow.get()), getcurx(cursesWindow.get()), str);
+  addString(getcury(cursesWindow.get()), getcurx(cursesWindow.get()), str);
 }
 
 int Curses::WindowImplementation::getRowStart() const {
@@ -125,8 +128,8 @@ void Curses::WindowImplementation::moveCursorLeft(int amount) {
 void Curses::WindowImplementation::moveCursorRight(int amount) {
   int current = getcurx(cursesWindow.get());
   if (amount + getcurx(cursesWindow.get()) >= getmaxx(cursesWindow.get()) - 1) {
-      amount = getmaxx(cursesWindow.get()) - 1;
-      current = 0;
+    amount = getmaxx(cursesWindow.get()) - 1;
+    current = 0;
   }
   wmove(cursesWindow.get(), getcury(cursesWindow.get()), amount + current);
 }
@@ -168,29 +171,31 @@ void Curses::WindowImplementation::refresh() {
 }
 
 void Curses::WindowImplementation::log(std::ostream& out) {
+    int orix = getCurCol();
+    int oriy = getCurRow();
 
- for (int i = 0; i < getNumRows(); i++) {
-    for (int k = 0; k < getNumCols(); k++) {
-      out << getWindowChar(i , k);
-    }
-    out << std::endl;
-  }
+   for (int i = 0; i < getNumRows(); ++i) {
+     for (int k = 0; k < getNumCols(); ++k) {
+       out << getWindowChar(i , k);
+     }
+     out << std::endl;
+   }
+   wmove(cursesWindow.get(), orix,oriy);
 }
 
 void Curses::WindowImplementation::change_cursor() {
-    // THIS is only for advancing cursor to right by one with wrapping
+  // THIS is only for advancing cursor to right by one with wrapping
 
-    int maxX = getmaxx(cursesWindow.get());
-    int maxY = getmaxy(cursesWindow.get());
-    int curX = getcurx(cursesWindow.get());
-    int curY = getcury(cursesWindow.get());
+  int maxX = getmaxx(cursesWindow.get());
+  int maxY = getmaxy(cursesWindow.get());
+  int curX = getcurx(cursesWindow.get());
+  int curY = getcury(cursesWindow.get());
 
-    if (advancing_status) {
-        if (maxX == curX + 1 && maxY == curY + 1) {   // bottom right corner
-        }
-        else if (maxX == curX + 1 && maxY != curY + 1) {   // end of a row
-          wmove(cursesWindow.get(), curY + 1, 0); }
-        else { wmove(cursesWindow.get(), curY, curX + 1); } // within window borders
+  //if (advancing_status) {
+    if (maxX == curX && maxY == curY) {
+        wmove(cursesWindow.get(), maxY, maxX);// bottom right corner
     }
-
-}
+    else if (maxX != curX +1 && maxY == curY + 1) {   // end of a row
+      wmove(cursesWindow.get(), curY, 0); }
+    //else { wmove(cursesWindow.get(), curX, curY + 1); } // within window borders
+  }
