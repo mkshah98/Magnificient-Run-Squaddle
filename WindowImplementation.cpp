@@ -29,7 +29,7 @@ Curses::WindowImplementation::WindowImplementation(int numRows, int numCols) : W
 Curses::WindowImplementation::~WindowImplementation() = default;
 
 char Curses::WindowImplementation::getWindowChar(int row, int col) {
-  return mvwgetch(cursesWindow.get(), row, col);
+  return mvwinch(cursesWindow.get(), row, col);
 }
 
 char Curses::WindowImplementation::getWindowChar() {
@@ -48,11 +48,12 @@ std::string Curses::WindowImplementation::getStringInput(int row, int col) {
   std::string win_string;
   int i = col;
 
-  while(getCharInput(row, i) != '\0' && getmaxx(cursesWindow.get()) != i + 1) {
+  while(getCharInput(row, i) != '\n') {
     win_string += getCharInput(row, i);
     ++i;
   }
-  win_string += '\0';
+  moveCursor(row, col);
+    //win_string += '\0';
   return win_string;
 }
 
@@ -61,11 +62,11 @@ std::string Curses::WindowImplementation::getStringInput() {
 }
 
 void Curses::WindowImplementation::addCharacter(int row, int col, char value) {
-  int oriRow = getcury(cursesWindow.get());
-  int oriCol = getcurx(cursesWindow.get());
   mvwaddch(cursesWindow.get(), row, col, value);
-  wmove(cursesWindow.get(), oriRow, oriCol);
-  change_cursor();
+  if(!advancing_status){
+    wmove(cursesWindow.get(), oriRow, oriCol);
+    change_cursor();
+  }
 }
 
 void Curses::WindowImplementation::addCharacter(char value) {
@@ -74,9 +75,12 @@ void Curses::WindowImplementation::addCharacter(char value) {
 
 void Curses::WindowImplementation::addString(int row, int col, const std::string& str) {
     wmove(cursesWindow.get(), row, col);
-    for(const auto& letter : str) {
-        addCharacter(letter);
-    }
+  for(const auto& letter : str) {
+    addCharacter(letter);
+  }
+  if(!advancing_status) {
+      wmove(cursesWindow.get(), row, col);
+  }
 }
 
 void Curses::WindowImplementation::addString(const std::string& str) {
@@ -165,12 +169,12 @@ void Curses::WindowImplementation::refresh() {
 
 void Curses::WindowImplementation::log(std::ostream& out) {
 
- /* for (int i = 0; i < getNumRows(); i++) {
+ for (int i = 0; i < getNumRows(); i++) {
     for (int k = 0; k < getNumCols(); k++) {
       out << getWindowChar(i , k);
     }
     out << std::endl;
-  }*/
+  }
 }
 
 void Curses::WindowImplementation::change_cursor() {
