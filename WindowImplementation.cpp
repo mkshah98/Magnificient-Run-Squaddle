@@ -9,14 +9,17 @@
  * you have other members
  */
 Curses::WindowImplementation::WindowImplementation(int numRows, int numCols, int startRow, int startCol) :
-        cursesWindow(nullptr, delwin) {
+    cursesWindow(nullptr, delwin) {
   if (!stdscr) {
     initscr();
   }
-  cursesWindow = std::unique_ptr<WINDOW, decltype(delwin)*>(newwin(numRows, numCols, startRow, startCol), delwin);
+  cursesWindow = std::unique_ptr<WINDOW, decltype(delwin) *>(newwin(numRows, numCols, startRow, startCol), delwin);
 }
 
-Curses::WindowImplementation::WindowImplementation(int numRows, int numCols) : WindowImplementation(numRows, numCols, 0,0){}
+Curses::WindowImplementation::WindowImplementation(int numRows, int numCols) : WindowImplementation(numRows,
+                                                                                                    numCols,
+                                                                                                    0,
+                                                                                                    0) {}
 
 //the unique pointer will automatically delete itself
 //but if you dynamically allocate any more space for this
@@ -32,26 +35,30 @@ char Curses::WindowImplementation::getWindowChar() {
 }
 
 char Curses::WindowImplementation::getCharInput(int row, int col) {
-    char input_char =mvwgetch(cursesWindow.get(), row, col);
-    if(!advancing_status){
-        wmove(cursesWindow.get(),row, col);
-    }
-    return input_char;
+  char input_char = mvwgetch(cursesWindow.get(), row, col);
+  if (!advancing_status) {
+    wmove(cursesWindow.get(), row, col);
+  }
+  return input_char;
 }
 
 char Curses::WindowImplementation::getCharInput() {
-  return getCharInput(getCurRow(),getCurCol());
+  return getCharInput(getCurRow(), getCurCol());
 }
 
 std::string Curses::WindowImplementation::getStringInput(int row, int col) {
   std::string win_string;
-  int i = col;
-  moveCursor(row,col);
-  while(getCharInput(row, i) != '\n') {
-    win_string += getCharInput(row, i);
+  int i = col, j = row;
+  wmove(cursesWindow.get(), row, col);
+  while (getCharInput(j, i) != '\n') {
+    win_string += getCharInput(j, i);
     i++;
+    if (i == getmaxx(cursesWindow.get()) && j != getmaxy(cursesWindow.get())) {
+      i = 0;
+      row += 1;
+    }
   }
-  if(!advancing_status){ moveCursor(row,col);}
+  if (!advancing_status) { moveCursor(row, col); }
   return win_string;
 }
 
@@ -60,33 +67,51 @@ std::string Curses::WindowImplementation::getStringInput() {
 }
 
 void Curses::WindowImplementation::addCharacter(int row, int col, char value) {
- mvwaddch(cursesWindow.get(), row, col, value);
-  if(!advancing_status) {
-      wmove(cursesWindow.get(), row, col);
-     // change_cursor();
+  mvwaddch(cursesWindow.get(), row, col, value);
+  if (!advancing_status) {
+    wmove(cursesWindow.get(), row, col);
+    // change_cursor();
   }
 }
 
 void Curses::WindowImplementation::addCharacter(char value) {
   addCharacter(getCurRow(), getCurCol(), value);
-  if(!advancing_status) {
-      wmove(cursesWindow.get(), getCurRow(), getCurCol());
-      //change_cursor();
+
+  if (!advancing_status) {
+    wmove(cursesWindow.get(), getCurRow(), getCurCol());
   }
 }
 
-void Curses::WindowImplementation::addString(int row, int col, const std::string& str) {
+void Curses::WindowImplementation::addString(int row, int col, const std::string &str) {
+  bool temp = advancing_status;
+  setAdvanceCursorOn();
+  int i = row, j = col;
   wmove(cursesWindow.get(), row, col);
-  for(const auto& letter : str) {
+  for (const auto &letter : str) {
     addCharacter(letter);
+    if ((j == getNumCols()) && i < getNumRows()) { // End of row
+      wmove(cursesWindow.get(), getCurRow() + 1, 0);
+    } else if (getCurRow() == getNumRows() + 1 && getCurCol() == getNumCols() + 1) { // Bottom right corner
+      break;
+    } else {
+      moveCursorRight(1);
+    }
   }
-  if(!advancing_status) {
-      wmove(cursesWindow.get(), row, col);
-      change_cursor();
+
+  if (temp) {
+    setAdvanceCursorOn();
+  } else {
+    setAdvanceCursorOff();
   }
+
+  /* if(!advancing_status) {
+   wmove(cursesWindow.get(), row, col);
+   change_cursor();
+ }*/
+
 }
 
-void Curses::WindowImplementation::addString(const std::string& str) {
+void Curses::WindowImplementation::addString(const std::string &str) {
   addString(getcury(cursesWindow.get()), getcurx(cursesWindow.get()), str);
 }
 
@@ -122,7 +147,7 @@ void Curses::WindowImplementation::moveCursorLeft(int amount) {
   if (getcurx(cursesWindow.get()) < amount) {
     amount = getcurx(cursesWindow.get());
   }
-  wmove(cursesWindow.get(), getcury(cursesWindow.get()), getcurx(cursesWindow.get())-amount);
+  wmove(cursesWindow.get(), getcury(cursesWindow.get()), getcurx(cursesWindow.get()) - amount);
 }
 
 void Curses::WindowImplementation::moveCursorRight(int amount) {
@@ -170,17 +195,17 @@ void Curses::WindowImplementation::refresh() {
   wrefresh(cursesWindow.get());
 }
 
-void Curses::WindowImplementation::log(std::ostream& out) {
-    int orix = getCurCol();
-    int oriy = getCurRow();
+void Curses::WindowImplementation::log(std::ostream &out) {
+  int orix = getCurCol();
+  int oriy = getCurRow();
 
-   for (int i = 0; i < getNumRows(); ++i) {
-     for (int k = 0; k < getNumCols(); ++k) {
-       out << getWindowChar(i , k);
-     }
-     out << std::endl;
-   }
-   wmove(cursesWindow.get(), orix,oriy);
+  for (int i = 0; i < getNumRows(); ++i) {
+    for (int k = 0; k < getNumCols(); ++k) {
+      out << getWindowChar(i, k);
+    }
+    out << std::endl;
+  }
+  wmove(cursesWindow.get(), oriy, orix);
 }
 
 void Curses::WindowImplementation::change_cursor() {
@@ -192,10 +217,10 @@ void Curses::WindowImplementation::change_cursor() {
   int curY = getcury(cursesWindow.get());
 
   //if (advancing_status) {
-    if (maxX == curX && maxY == curY) {
-        wmove(cursesWindow.get(), maxY, maxX);// bottom right corner
-    }
-    else if (maxX != curX +1 && maxY == curY + 1) {   // end of a row
-      wmove(cursesWindow.get(), curY, 0); }
-    //else { wmove(cursesWindow.get(), curX, curY + 1); } // within window borders
+  if (maxX == curX && maxY == curY) {
+    wmove(cursesWindow.get(), maxY, maxX);// bottom right corner
+  } else if (maxX != curX + 1 && maxY == curY + 1) {   // end of a row
+    wmove(cursesWindow.get(), curY, 0);
   }
+  //else { wmove(cursesWindow.get(), curX, curY + 1); } // within window borders
+}
