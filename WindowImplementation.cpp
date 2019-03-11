@@ -225,5 +225,5 @@ void Curses::WindowImplementation::change_cursor() {
   } else if (maxX != curX + 1 && maxY == curY + 1) {   // end of a row
     wmove(cursesWindow.get(), curY, 0);
   }
-  //else { wmove(cursesWindow.get(), curX, curY + 1); } // within window borders
+
 }
