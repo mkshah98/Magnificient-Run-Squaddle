@@ -86,33 +86,39 @@ void Curses::WindowImplementation::addCharacter(char value) {
 }
 
 void Curses::WindowImplementation::addString(int row, int col, const std::string &str) {
-  bool temp = advancing_status;
-  setAdvanceCursorOn();
   int i = row, j = col;
   wmove(cursesWindow.get(), row, col);
   for (const auto &letter : str) {
-    addCharacter(letter);
-    if ((j == getNumCols()) && i < getNumRows()) { // End of row
-      wmove(cursesWindow.get(), getCurRow() + 1, 0);
-    } else if (getCurRow() == getNumRows() + 1 && getCurCol() == getNumCols() + 1) { // Bottom right corner
-      break;
-    } else {
+  //  if (advancing_status) {
+      addCharacter(letter);
+      if ((j == getNumCols()) && i < getNumRows()) { // End of row
+        wmove(cursesWindow.get(), getCurRow() + 1, 0);
+      } else if (getCurRow() == getNumRows() + 1 && getCurCol() == getNumCols() + 1) { // Bottom right corner
+        break;
+      } else {
+        moveCursorRight(1);
+      }
+    /*} else {  /// adds the proper string in place and such, but row and col are not accounted for
+      addCharacter(letter);
+      //j += 2;
       moveCursorRight(1);
+      if (j >= getNumCols() && i < getNumRows()) { // End of row
+        ++i;
+        j = 0;
+        moveCursor(i, j);
+      } else if (i == getNumRows() && j == getNumCols()) { // Bottom right corner
+        break;
+      }*/
     }
   }
 
-  if (temp) {
-    setAdvanceCursorOn();
-  } else {
-    setAdvanceCursorOff();
-  }
 
   /* if(!advancing_status) {
    wmove(cursesWindow.get(), row, col);
    change_cursor();
  }*/
 
-}
+
 
 void Curses::WindowImplementation::addString(const std::string &str) {
   addString(getcury(cursesWindow.get()), getcurx(cursesWindow.get()), str);
