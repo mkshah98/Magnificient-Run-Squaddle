@@ -50,13 +50,16 @@ std::string Curses::WindowImplementation::getStringInput(int row, int col) {
   std::string win_string;
   int i = col, j = row;
   wmove(cursesWindow.get(), row, col);
-  while (getCharInput(j, i) != '\n') {
-    win_string += getCharInput(j, i);
+  char input = getCharInput(j, i);
+
+  while (input != '\n') {
+    win_string += input;
     i++;
     if (i == getmaxx(cursesWindow.get()) && j != getmaxy(cursesWindow.get())) {
       i = 0;
-      row += 1;
+      j += 1;
     }
+    input = getCharInput(j, i);
   }
   if (!advancing_status) { moveCursor(row, col); }
   return win_string;
